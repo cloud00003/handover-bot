@@ -4,7 +4,7 @@ Source: [_docs/plan_handover-bot.md](_docs/plan_handover-bot.md), sections 1–3
 
 Repository inspected: only the specification, a minimal README, and `.gitignore` are present as project files. There is no application, dependency manifest, database setup, or test suite. A local `.env` exists; its contents were not read. `.gitignore` already excludes `.env`, virtual environments, Python caches, and SQLite `.sqlite3` files.
 
-All tasks below are pending. Implement one requested task at a time, in this order; dependencies name prerequisite tasks, including their transitive dependencies. This backlog does not authorize implementation.
+Task 1 is complete; tasks 2–12 are pending. Implement one requested task at a time, in this order; dependencies name prerequisite tasks, including their transitive dependencies. This backlog does not authorize implementation.
 
 ## Shared acceptance criteria
 
@@ -17,6 +17,8 @@ All tasks below are pending. Implement one requested task at a time, in this ord
 ## 1. Project scaffold and configuration
 
 **Dependencies:** None. **Specification:** 25–26, 29–32.
+
+**Status:** Complete. Added the dependency manifest, configuration loader, polling entry point with session cleanup, safe console logging, shared Russian error handling, `.env.example`, offline tests, and setup/run documentation. Verification: 15 tests passed; `pip check` passed. Live Telegram connectivity was not tested. No later task behavior was implemented.
 
 **Acceptance criteria:**
 

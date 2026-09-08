@@ -4,3 +4,6 @@ __pycache__/
 .env
 .pytest_cache/
 *.sqlite3
+*.egg-info/
+build/
+dist/
