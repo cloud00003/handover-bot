@@ -8,17 +8,22 @@ from aiogram import Bot
 from app.bot.handlers import create_dispatcher
 from app.config import ConfigurationError, Settings, load_settings
 from app.logging_config import configure_logging
+from app.db.session import create_engine, session_factory
 
 logger = logging.getLogger(__name__)
 
 
 async def run(settings: Settings) -> None:
-    dispatcher = create_dispatcher()
-    # Context ownership closes the session even if polling fails during startup.
-    async with Bot(token=settings.bot_token).context() as bot:
-        await dispatcher.start_polling(
-            bot, close_bot_session=False, allowed_updates=["message", "callback_query"]
-        )
+    engine = create_engine(settings.database_url)
+    try:
+        dispatcher = create_dispatcher(sessions=session_factory(engine))
+        # Context ownership closes the session even if polling fails during startup.
+        async with Bot(token=settings.bot_token).context() as bot:
+            await dispatcher.start_polling(
+                bot, close_bot_session=False, allowed_updates=["message", "callback_query"]
+            )
+    finally:
+        await engine.dispose()
 
 
 def main() -> int:

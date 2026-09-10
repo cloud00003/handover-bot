@@ -13,6 +13,7 @@ dependencies = [
     "aiosqlite>=0.20,<1",
     "alembic>=1.13,<2",
     "python-dotenv>=1.0,<2",
+    "tzdata>=2024.1",
 ]
 
 [project.optional-dependencies]

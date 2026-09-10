@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 from aiogram import Bot
@@ -17,18 +17,25 @@ from app.logging_config import RedactingFormatter
 
 @pytest.mark.parametrize("failure", [None, RuntimeError("startup failure"), asyncio.CancelledError()])
 async def test_polling_closes_session(monkeypatch, token, failure):
+    engine = main.create_engine("sqlite+aiosqlite:///:memory:")
+    dispose = AsyncMock(wraps=engine.dispose)
+    monkeypatch.setattr(type(engine), "dispose", dispose)
+    monkeypatch.setattr(main, "create_engine", lambda url: engine)
     bot = Bot(token)
     bot.session.close = AsyncMock()
     dispatcher = create_dispatcher()
     dispatcher.start_polling = AsyncMock(side_effect=failure)
     monkeypatch.setattr(main, "Bot", lambda **kwargs: bot)
-    monkeypatch.setattr(main, "create_dispatcher", lambda: dispatcher)
+    build_dispatcher = Mock(return_value=dispatcher)
+    monkeypatch.setattr(main, "create_dispatcher", build_dispatcher)
     if failure is None:
         await main.run(Settings(token))
     else:
         with pytest.raises(type(failure)):
             await main.run(Settings(token))
     bot.session.close.assert_awaited_once()
+    dispose.assert_awaited_once()
+    assert build_dispatcher.call_args.kwargs["sessions"].kw["bind"] is engine
     dispatcher.start_polling.assert_awaited_once_with(
         bot, close_bot_session=False, allowed_updates=["message", "callback_query"]
     )
@@ -69,7 +76,7 @@ async def test_dispatcher_error_responses_are_russian_and_safe(token, kind, capl
     update = Update.model_validate({"update_id": 1, kind: payload})
 
     async def fail(event):
-        raise RuntimeError("private error " + token)
+        raise RuntimeError("private error " + token + " invite-secret-sentinel pickup-secret-sentinel")
 
     # Replace the callback fallback for the error-path test.
     getattr(dispatcher, kind).handlers.clear()
@@ -81,6 +88,8 @@ async def test_dispatcher_error_responses_are_russian_and_safe(token, kind, capl
     assert request.text == UNEXPECTED_ERROR
     assert token not in caplog.text
     assert "private error" not in caplog.text
+    assert "invite-secret-sentinel" not in caplog.text
+    assert "pickup-secret-sentinel" not in caplog.text
     assert "RuntimeError" in caplog.text
 
 

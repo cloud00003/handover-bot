@@ -4,7 +4,7 @@ Source: [_docs/plan_handover-bot.md](_docs/plan_handover-bot.md), sections 1–3
 
 Repository inspected: only the specification, a minimal README, and `.gitignore` are present as project files. There is no application, dependency manifest, database setup, or test suite. A local `.env` exists; its contents were not read. `.gitignore` already excludes `.env`, virtual environments, Python caches, and SQLite `.sqlite3` files.
 
-Task 1 is complete; tasks 2–12 are pending. Implement one requested task at a time, in this order; dependencies name prerequisite tasks, including their transitive dependencies. This backlog does not authorize implementation.
+Tasks 1–3 and 5–6 are complete; task 4 is in progress pending replacement-policy clarification; tasks 7–12 are pending. Task 5 was explicitly requested while Task 4 removal remained pending; it uses existing invitations and validates active bindings without implementing removal or reassignment policy. Implement one requested task at a time; dependencies name prerequisite tasks, including their transitive dependencies. This backlog does not authorize implementation.
 
 ## Shared acceptance criteria
 
@@ -31,6 +31,10 @@ Task 1 is complete; tasks 2–12 are pending. Implement one requested task at a 
 
 **Dependencies:** 1. **Specification:** 10, 18–24, 27.
 
+**Status:** Complete. Implemented the initial Alembic migration, async SQLite sessions, historical binding records, constraints and single-use record operations, UTC timestamp storage, structural state transitions, and atomic immutable audit events. Applied the user's clarified rules: Asia/Bishkek local scheduling/display, waiting defaults copied at order creation, and only completion or dispute after successful code verification. Task 2 introduced no Telegram workflows.
+
+**Verification:** 66 automated tests passed, including clean migration/upgrade/downgrade, schema comparison, persistence, concurrency, rollback, audit immutability, Bishkek/UTC date-boundary conversion, waiting snapshots, and post-verification transition restrictions. `pip check` passed. Tests used temporary databases; the local `.env` and Telegram bot were not changed.
+
 **Acceptance criteria:**
 
 - Migrations create persistent users/role bindings, invitations, orders, pickup-code data, defaults, and events with all fields required by sections 19 and 21–24.
@@ -44,6 +48,10 @@ Task 1 is complete; tasks 2–12 are pending. Implement one requested task at a 
 
 **Dependencies:** 2. **Specification:** 3–5, 21, 25–27.
 
+**Status:** Complete. Clean-system `/start` uses the exact Russian confirmation wording and one confirmation button. Atomic first-administrator registration persists Telegram identity and role; stale, repeated, and concurrent confirmations cannot register another administrator. Each protected menu action checks the current active role by Telegram user ID. The menu contains exactly `Заказы`, `Участники`, `История`, and `Настройки`; section workflows remain pending in later tasks. Existing Task 1 and Task 2 business rules are unchanged.
+
+**Verification:** 35 targeted registration/runtime tests passed; the full suite passed all 95 tests. `pip check` and `git diff --check` passed (line-ending warnings only). Tests use temporary migrated databases and mocked Telegram requests; no live registration was performed.
+
 **Acceptance criteria:**
 
 - On a clean system, `/start` shows only `Подтвердить роль администратора`; confirmation saves identity/profile data and initializes the system.
@@ -54,6 +62,10 @@ Task 1 is complete; tasks 2–12 are pending. Implement one requested task at a 
 ## 4. Participant invitations and removal
 
 **Dependencies:** 3. **Specification:** 6–7, 21–22, 25, 27.
+
+**Status:** In progress. Implemented administrator name-entry flows, secure hashed one-time invitation tokens/deep links, atomic role binding/redemption, current-role authorization, and participant lists/profiles in Russian. Binding removal remains pending clarification of its effects on active orders, defaults, and replacement assignments.
+
+**Verification so far:** 25 invitation tests and all 120 full-suite tests passed. `pip check` and `git diff --check` passed (line-ending warnings only). No live Telegram messages were sent; the local `.env` was unchanged.
 
 **Acceptance criteria:**
 
@@ -67,6 +79,10 @@ Task 1 is complete; tasks 2–12 are pending. Implement one requested task at a 
 
 **Dependencies:** 4. **Specification:** 8–10, 23–24, 27.
 
+**Status:** Complete. Added Russian operational settings, active participant selection, and step-by-step order drafts with current defaults, individual overrides, optional description, summary/edit/cancel, and final atomic creation/event recording. Uses Asia/Bishkek scheduling and existing per-order waiting snapshots. Fresh form callback markers and the existing per-conversation event isolation reject stale/repeated confirmation. No schema migration, removal policy, or Task 6+ workflow was added.
+
+**Verification:** All 190 full-suite tests pass; targeted Task 5, registration, and invitation tests pass (122 tests), including invalid fields, missing/inactive defaults, all editable draft fields, settings persistence, role guards, concurrent confirmations, event rollback, and Telegram delivery failure after successful creation. `pip check` and `git diff --check` pass. Tests used temporary migrated databases and mocked Telegram requests.
+
 **Acceptance criteria:**
 
 - `Настройки` persists default courier, customer, pickup address, and configurable waiting minutes (initially 15); secrets are never displayed.
@@ -79,11 +95,15 @@ Task 1 is complete; tasks 2–12 are pending. Implement one requested task at a 
 
 **Dependencies:** 5. **Specification:** 17, 19–20, 27.
 
+**Status:** Complete. Added Russian paginated active/history lists, order details and milestone timestamps, recorded photo/location viewing, safe code-expiry display, and paginated event timelines. Administrator cancellation requires confirmation and current authorization, rejects verified/terminal handovers, and atomically records status, cancellation time, audit event, and unused-code invalidation. Participants are notified after commit; delivery failures are reported without undoing cancellation. No migration or Task 7+ workflow was added.
+
+**Verification:** All 58 Task 6 tests and all 248 full-suite tests passed. Coverage includes every lifecycle state, empty/missing data, historical names, evidence and long-text pagination, secret suppression, cancellation abort/confirm, duplicate/concurrent confirmation, verification after prompting, rollback, current-role guards, and notification failure. `pip check` and `git diff --check` passed. Tests used temporary migrated databases and mocked Telegram requests; the running bot was not restarted.
+
 **Acceptance criteria:**
 
 - Active list shows name, scheduled date/time, named courier/customer, and Russian status; order details render all specified fields, available evidence, milestone times, code expiry, and timeline without exposing the code/hash.
 - `История` includes completed, cancelled, no-show, and disputed orders with individual timelines; absent data and empty lists have clear Russian rendering.
-- Confirmed `Отменить заказ` changes an active order to `Отменено`, records the event/time, blocks further handover actions, and notifies its courier and customer.
+- Confirmed `Отменить заказ` changes an active order before successful code verification to `Отменено`, records the event/time, blocks further handover actions, and notifies its courier and customer. Cancellation after code verification is forbidden by the clarified transition rules.
 - Tests use representative lifecycle fixtures to cover all views, cancellation confirmation/abort, duplicates, and forbidden actions after cancellation. Later tasks verify newly generated evidence appears here.
 
 ## 7. Courier arrival, location, and product photo
@@ -156,11 +176,19 @@ Task 1 is complete; tasks 2–12 are pending. Implement one requested task at a 
 - Review every Telegram surface for Russian wording, including errors/empty states; verify secrets are excluded and runtime state survives restart.
 - Section 34's definition of done is checked against evidence; no section 33 features are introduced. Finish with documented run instructions and deployment preparation for the specified simple stack.
 
+## Confirmed timing and transition rules
+
+The user clarified these rules for task 2:
+
+- Scheduled and displayed local date/time use `Asia/Bishkek`; persisted server timestamps use UTC.
+- Waiting defaults are copied into each order at creation. Later default changes do not affect existing orders.
+- After successful pickup-code verification, the order can only proceed from pending customer confirmation to completed or disputed. No-show and cancellation are not allowed.
+
 ## Clarifications required before affected implementation
 
 These are unresolved specification details, not new features or assumed business rules. Ask the user when the affected task is requested; planning can be completed without deciding them.
 
-- **Tasks 2, 5, 7, 10:** Which timezone interprets/displays scheduled date and time? How early/late is `Я на месте` available, and which order is current if a courier has multiple active orders?
-- **Tasks 2, 5, 10:** How long does `Продлить ожидание` extend waiting, are repeated extensions allowed, and do changed waiting defaults affect existing orders? Can waiting end after code verification while customer confirmation is pending, and how should conflicting terminal actions be handled?
+- **Task 7:** How early/late is `Я на месте` available, and which order is current if a courier has multiple active orders?
+- **Task 10:** How long does `Продлить ожидание` extend waiting, and are repeated extensions allowed?
 - **Tasks 4–5:** After unbinding, what happens to active orders and defaults referencing that participant? Does a replacement inherit existing assignments, or only become selectable for new orders? Historical records must remain intact in every case.
 - **Task 8:** Who may request a replacement pickup code, and through which action? Implement the specified invalidation guarantee without inventing an additional Telegram workflow.
